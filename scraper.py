@@ -15,6 +15,15 @@ SUB_DIV = 'Proj/Subdiv'
 LIST_DATE = 'List Date'
 
 
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+
+
 class ListingNotFound(Exception):
     """ An exception representing a missing listing. """
     pass
@@ -69,6 +78,7 @@ def scrape_listing(mls_id):
 
 def run_scraper(mls=INITIAL_MLS):
     misses = 0
+    foundHit = False
     while (MISS_THRESHOLD > misses):
         try:
             existing_listing = Listing.get_listing(mls)
@@ -87,11 +97,12 @@ def run_scraper(mls=INITIAL_MLS):
                 existing_listing.save()
             else:
                 if fits_criteria(listing):
-                    print 'HIT'
+                    print '%sHIT%s' % (bcolors.OKGREEN, bcolors.ENDC)
+                    foundHit = True
                     listing.is_new = True
                     listing.save()
                 else:
-                    print 'MISS. Count: %s' % misses
+                    print '%sMISS. Count: %s%s' % (bcolors.WARNING, misses, bcolors.ENDC)
             mls = mls + 1
             misses = 0
         except ListingNotFound:
@@ -105,6 +116,11 @@ def run_scraper(mls=INITIAL_MLS):
             else:
                 print 'misses are %s ' % misses
 
+    if foundHit:
+        print '%sFound a Hit!%s' % (bcolors.HEADER, bcolors.ENDC)
+    else:
+        print '%sNo Hits this time.%s' % (bcolors.FAIL, bcolors.ENDC)
+
 
 def fits_criteria(listing):
     print '%s zip in ZIPS %s?' % (listing.zip_code,
@@ -116,5 +132,4 @@ def fits_criteria(listing):
                   or listing.city.lower().startswith(CITY2))
 
     return match_zip and match_price and match_city
-
 

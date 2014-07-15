@@ -1,6 +1,7 @@
 import re
 import csv
 import json
+import os
 
 from sqlalchemy import (Column, Integer, DateTime, Date, Boolean,
                         String, Numeric, ForeignKey, or_, create_engine)
@@ -73,7 +74,7 @@ class Listing(ReprMixin, Base):
 
     @classmethod
     def get_last_mls(cls):
-        return session.query(cls).order_by(cls.id.desc()).first().mls
+        return session.query(cls).order_by(cls.id.desc()).first().mls + 1
 
 
 class ValidationException(Exception):
@@ -96,23 +97,30 @@ def export_json():
     f.close()
 
 
-def export_csv(filename=FILENAME):
+def file_is_empty(path):
+    return os.stat(path).st_size==0
+
+
+def export_csv(filename=FILENAME, initial_mls=Listing.get_last_mls()):
     listings_exist = session.query(Listing).all()
 
-    if listings_exist:
-        outfile = open(filename, 'a')
-    else:
-        outfile = open(filename, 'wb')
+    if file_is_empty(FILENAME):
+        outfile=open(filename, 'wb')
+        outcsv = csv.writer(outfile)
 
-    outcsv = csv.writer(outfile)
-
-    if not listings_exist:
         headers = Listing.__table__.columns.keys()
-        records = session.query(Listing).all()
+        outcsv.writerow(headers)
 
-    outcsv.writerow(headers)
+        records = session.query(Listing).all()
+    else:
+        outfile = open(filename, 'a')
+        outcsv = csv.writer(outfile)
+    
+        records = session.query(Listing).filter(Listing.mls>initial_mls).all()
+
     [outcsv.writerow(
         [getattr(curr, column.name)
          for column in Listing.__mapper__.columns]) for curr in records]
+
     outfile.close()
     print 'file %s written successfully.' % filename
